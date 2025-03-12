@@ -41,7 +41,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	const maxMemory = 10 << 20
 	r.ParseMultipartForm(maxMemory)
 
-	file, handler, err := r.FormFile("video")
+	file, handler, err := r.FormFile("thumbnail")
 	// Retrieves a file that was uploaded in an HTML form.
 	// It extracts a file from a **MULTIPART** form submission where the form field name is "thumbnail"
 	//
