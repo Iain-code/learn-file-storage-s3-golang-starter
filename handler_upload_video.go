@@ -141,6 +141,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	processedFile, err := os.Open(processedFilePath)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "failed to open file", err)
+		return
 	}
 
 	// when defers are called its Last In First Out (LIFO) so close will be called before remove
@@ -149,24 +150,30 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	defer tempFile.Close()
 
 	tempFile.Seek(0, io.SeekStart)
+	fmt.Printf("prefix: %v\n", prefix)
 
-	prefixKey := prefix + randomKey
-	bucketKeyStr := cfg.s3Bucket + "," + prefixKey
-
+	bucketAndKeyString := cfg.s3Bucket + "," + prefix + randomKey
+	key := prefix + randomKey
+	fmt.Printf("video.videoURL: %v\n", video.VideoURL)
+	_, err = cfg.dbVideoToSignedVideo(video)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "failed to presign file", err)
+		return
+	}
 	// s3 client struct for input
 	obj := &s3.PutObjectInput{}
 	obj.Bucket = &cfg.s3Bucket
-	obj.Key = &prefixKey
+	obj.Key = &key
 	obj.Body = processedFile
 	obj.ContentType = &contentType
-	fmt.Printf("prefixKey 1: %v\n", prefixKey)
+	fmt.Printf("prefixKey 1: %v\n", prefix)
 	// PutObject actually adds the object (obj.Body = tempFile -> now processedFile) with other metadata to s3 BUCKET
 	_, err = cfg.s3Client.PutObject(r.Context(), obj)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Failed to PutObject", err)
 		return
 	}
-	video.VideoURL = &bucketKeyStr
+	video.VideoURL = &bucketAndKeyString
 	video.UpdatedAt = time.Now()
 
 	err = cfg.db.UpdateVideo(video)
