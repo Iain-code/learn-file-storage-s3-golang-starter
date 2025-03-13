@@ -25,6 +25,7 @@ type apiConfig struct {
 	s3CfDistribution string
 	port             string
 	s3Client         *s3.Client
+	cloudFront       string
 }
 
 type thumbnail struct {
@@ -84,6 +85,10 @@ func main() {
 	if port == "" {
 		log.Fatal("PORT environment variable is not set")
 	}
+	cloudfrontURL := os.Getenv("CLOUDFRONT_URL")
+	if cloudfrontURL == "" {
+		log.Fatal("PORT environment variable is not set")
+	}
 
 	// Using the SDK's default configuration, load additional config
 	// and credentials values from the environment variables, shared
@@ -107,6 +112,7 @@ func main() {
 		s3CfDistribution: s3CfDistribution,
 		port:             port,
 		s3Client:         svc,
+		cloudFront:       cloudfrontURL,
 	}
 
 	err = cfg.ensureAssetsDir()

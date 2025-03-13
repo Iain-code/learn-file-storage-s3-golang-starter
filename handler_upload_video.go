@@ -150,33 +150,29 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	defer tempFile.Close()
 
 	tempFile.Seek(0, io.SeekStart)
-	fmt.Printf("prefix: %v\n", prefix)
 
-	bucketAndKeyString := cfg.s3Bucket + "," + prefix + randomKey
 	key := prefix + randomKey
-	fmt.Printf("video.videoURL: %v\n", video.VideoURL)
-	_, err = cfg.dbVideoToSignedVideo(video)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "failed to presign file", err)
-		return
-	}
-	// s3 client struct for input
+
+	url := cfg.cloudFront + key
+
+	// s3 client / upload struct for upload to AWS s3
 	obj := &s3.PutObjectInput{}
-	obj.Bucket = &cfg.s3Bucket
-	obj.Key = &key
+	obj.Bucket = &cfg.s3Bucket // name of bucket used
+	obj.Key = &key             // key used to identify file on s3 db
 	obj.Body = processedFile
 	obj.ContentType = &contentType
-	fmt.Printf("prefixKey 1: %v\n", prefix)
+
 	// PutObject actually adds the object (obj.Body = tempFile -> now processedFile) with other metadata to s3 BUCKET
 	_, err = cfg.s3Client.PutObject(r.Context(), obj)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Failed to PutObject", err)
 		return
 	}
-	video.VideoURL = &bucketAndKeyString
+	video.VideoURL = &url
 	video.UpdatedAt = time.Now()
+	fmt.Printf("videoURL: %v", video.VideoURL)
 
-	err = cfg.db.UpdateVideo(video)
+	err = cfg.db.UpdateVideo(video) // update video in sqlite3
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid Request", err)
 		return
